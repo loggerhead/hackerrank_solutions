@@ -1,3 +1,4 @@
+solution.erl
 *.beam
 *.dump
 # Byte-compiled / optimized / DLL files
