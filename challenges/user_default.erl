@@ -1,14 +1,23 @@
 -module(user_default).
 -compile(export_all).
--define(INPUT, "input").
+-define(INPUT, "input.txt").
 
 d() ->
     compile_and_run(fun() ->
-        Output = os:cmd("erl -noshell -eval 'solution:main(),init:stop()' < " ++ ?INPUT),
+        Expre = ["{_, Secs1, Micro1} = now()",
+                 "solution:main()",
+                 "{_, Secs2, Micro2} = now()",
+                 "io:fwrite(\"~nUsed: ~f s~n\", [Secs2-Secs1 + (Micro2-Micro1)/1000000])",
+                 "init:stop()"],
+        Output = os:cmd("erl -noshell -eval '" ++ string:join(Expre, ",") ++ "' < " ++ ?INPUT),
         io:fwrite("~s", [Output])
     end).
 
-t() -> compile_and_run(fun solution:main/0).
+t() -> 
+    {_, Secs1, Micro1} = now(),
+    compile_and_run(fun solution:main/0),
+    {_, Secs2, Micro2} = now(),
+    io:fwrite("~nUsed: ~f s~n", [Secs2-Secs1 + (Micro2-Micro1)/1000000]).
 
 compile_and_run(F) ->
     Module = solution,
@@ -26,19 +35,20 @@ input() ->
     try ets:lookup(stdin, data) of
         [{data, S}] -> S
     catch
-        _:_ -> file:write_file(?INPUT, reinput())
+        _:_ -> reinput()
     end.
 
 reinput() ->
     S = read_util("EOF"),
     catch ets:new(stdin, [set, public, named_table]),
     ets:insert(stdin, {data, S}),
+    file:write_file(?INPUT, S),
     S.
 
 read_util(Stop) ->
     Line = io:get_line(""),
-    Line2 = string:strip(Line, right, $\n),
+    Line2 = re:replace(Line, "(^\\s+)|(\\s+$)", "", [global,{return,list}]),
     if
         Line2 == Stop -> "";
-        Line2 /= Stop -> Line ++ read_util(Stop)
+        Line2 /= Stop -> Line2 ++ "\n" ++ read_util(Stop)
     end.
