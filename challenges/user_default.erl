@@ -2,22 +2,24 @@
 -compile(export_all).
 -define(INPUT, "input.txt").
 
-d() ->
+d() -> d(solution).
+d(M) ->
     compile_and_run(fun() ->
-        Expre = ["{_, Secs1, Micro1} = now()",
-                 "solution:main()",
-                 "{_, Secs2, Micro2} = now()",
-                 "io:fwrite(\"~nUsed: ~f s~n\", [Secs2-Secs1 + (Micro2-Micro1)/1000000])",
+        Expre = ["Secs1 = user_default:seconds()",
+                 atom_to_list(M) ++ ":main()",
+                 "Secs2 = user_default:seconds()",
+                 "io:fwrite(\"~nUsed: ~f s~n\", [Secs2-Secs1])",
                  "init:stop()"],
         Output = os:cmd("erl -noshell -eval '" ++ string:join(Expre, ",") ++ "' < " ++ ?INPUT),
         io:fwrite("~s", [Output])
     end).
 
-t() -> 
-    {_, Secs1, Micro1} = now(),
-    compile_and_run(fun solution:main/0),
-    {_, Secs2, Micro2} = now(),
-    io:fwrite("~nUsed: ~f s~n", [Secs2-Secs1 + (Micro2-Micro1)/1000000]).
+t() -> t(solution).
+t(M) -> 
+    Secs1 = seconds(),
+    compile_and_run(fun M:main/0),
+    Secs2 = seconds(),
+    io:fwrite("~nUsed: ~f s~n", [Secs2-Secs1]).
 
 compile_and_run(F) ->
     Module = solution,
@@ -52,3 +54,7 @@ read_util(Stop) ->
         Line2 == Stop -> "";
         Line2 /= Stop -> Line2 ++ "\n" ++ read_util(Stop)
     end.
+
+seconds() ->
+    {Mega, Sec, Micro} = os:timestamp(),
+    (Mega*1000000 + Sec) + Micro/1000000.
