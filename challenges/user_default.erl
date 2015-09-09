@@ -7,6 +7,7 @@
 -define(RST, <<"0">>).
 -define(END, <<"m">>).
 
+-define(FILTER_MODULES, [erl_eval, init]).
 -define(INPUT, "input.txt").
 
 d() -> d(solution).
@@ -19,8 +20,8 @@ d(M) ->
                  "init:stop()"],
         Output = os:cmd("erl -noshell -eval '" ++ string:join(Expre, ",") ++ "' < " ++ ?INPUT),
         case string:str(Output, "erl_crash.dump") of
-            0 -> io:fwrite(Output);
-            _ -> print_error(Output)
+            0 -> io:fwrite(Output), ok;
+            _ -> print_error(Output), error
         end
     end).
 
@@ -95,11 +96,12 @@ print_error_reason(Reason) ->
         true -> tuple2string(Reason);
         false -> io_lib:fwrite("~p", [Reason])
     end,
-    io:fwrite(red_string(Prefix ++ Suffix) ++ "\n").
+    Suffix2 = re:replace(Suffix, ",", ", ", [global, {return, list}]),
+    io:fwrite(red_string(Prefix ++ Suffix2) ++ "\n").
 
 print_involved_functions(Functions) ->
-    lists:foreach(fun(Function) ->
-        {M, F, Args, FileInfo} = Function,
+    Functions2 = lists:filter(fun({M, _, _, _}) -> not lists:member(M, ?FILTER_MODULES) end, Functions),
+    lists:foreach(fun({M, F, Args, FileInfo}) ->
         MFA = io_lib:fwrite("~p:~p", [M, F]) ++
             case is_integer(Args) of
                 true -> io_lib:fwrite("/~b", [Args]);
@@ -115,7 +117,7 @@ print_involved_functions(Functions) ->
             _ -> ""
         end,
         io:fwrite("       in call from " ++ yellow_string(MFA) ++ Info ++ "\n")
-    end, Functions).
+    end, Functions2).
 
 print_error(S) ->
     [Errstr|_] = string:tokens(S, "\r\n"),
