@@ -7,12 +7,17 @@
 -define(RST, <<"0">>).
 -define(END, <<"m">>).
 
+-define(ESCAPES, [
+        % {regex, replacement}
+        {"<<0 bytes>>", "<<>>"},
+        {"#Fun<(.+?)>", "\'#Fun<\\1>\'"}
+    ]).
 -define(FILTER_MODULES, [erl_eval, init]).
 -define(INPUT, "input.txt").
 
 d() -> d(solution).
 d(M) ->
-    compile_and_run(fun() ->
+    compile_and_run(M, fun() ->
         Expre = ["Secs1 = user_default:seconds()",
                  atom_to_list(M) ++ ":main()",
                  "Secs2 = user_default:seconds()",
@@ -28,16 +33,15 @@ d(M) ->
 t() -> t(solution).
 t(M) ->
     Secs1 = seconds(),
-    compile_and_run(fun M:main/0),
+    compile_and_run(M, fun M:main/0),
     Secs2 = seconds(),
     io:fwrite("~nUsed: ~f s~n", [Secs2-Secs1]).
 
-compile_and_run(F) ->
-    Module = solution,
-    code:purge(Module),
-    case compile:file(Module) of
+compile_and_run(M, F) ->
+    code:purge(M),
+    case compile:file(M) of
         {ok, _} ->
-            case code:load_file(Module) of
+            case code:load_file(M) of
                 {module, _} -> F();
                 _ELSE -> 'load failed'
             end;
@@ -71,7 +75,10 @@ seconds() ->
     (Mega*1000000 + Sec) + Micro/1000000.
 
 string_to_atom(S) ->
-    {ok, Tokens, _} = erl_scan:string(S ++ "."),
+    Str = lists:foldl(fun({Re, Replacement}, Str) ->
+        re:replace(Str, Re, Replacement, [global, {return, list}])
+    end, S, ?ESCAPES),
+    {ok, Tokens, _} = erl_scan:string(Str ++ "."),
     {ok, AbsForm} = erl_parse:parse_exprs(Tokens),
     {value, Atom, _} = erl_eval:exprs(AbsForm, erl_eval:new_bindings()),
     Atom.
@@ -120,7 +127,12 @@ print_involved_functions(Functions) ->
     end, Functions2).
 
 print_error(S) ->
-    [Errstr|_] = string:tokens(S, "\r\n"),
+    Lines = lists:droplast(lists:droplast(string:tokens(S, "\r\n"))),
+    Errstr = lists:last(Lines),
+    case lists:droplast(Lines) of
+        [] -> nothing;
+        Ls -> io:fwrite("~s~n", [string:join(Ls, "\n")])
+    end,
     {_, {Reason, Functions}} = string_to_atom(Errstr),
     print_error_reason(Reason),
     print_involved_functions(Functions).
