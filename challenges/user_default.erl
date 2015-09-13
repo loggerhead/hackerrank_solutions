@@ -1,5 +1,6 @@
 -module(user_default).
 -compile(export_all).
+
 -define(RED, <<"31">>).
 -define(GREEN, <<"32">>).
 -define(YELLOW, <<"33">>).
@@ -18,10 +19,8 @@
 d() -> d(solution).
 d(M) ->
     compile_and_run(M, fun() ->
-        Expre = ["Secs1 = user_default:seconds()",
-                 atom_to_list(M) ++ ":main()",
-                 "Secs2 = user_default:seconds()",
-                 "io:fwrite(\"~nUsed: ~f s~n\", [Secs2-Secs1])",
+        Expre = ["{Time, _} = timer:tc(fun " ++ atom_to_list(M) ++ ":main/0)",
+                 "io:fwrite(\"~nUsed: ~f s~n\", [Time/1000000])",
                  "init:stop()"],
         Output = os:cmd("erl -noshell -eval '" ++ string:join(Expre, ",") ++ "' < " ++ ?INPUT),
         case string:str(Output, "erl_crash.dump") of
@@ -32,10 +31,8 @@ d(M) ->
 
 t() -> t(solution).
 t(M) ->
-    Secs1 = seconds(),
-    compile_and_run(M, fun M:main/0),
-    Secs2 = seconds(),
-    io:fwrite("~nUsed: ~f s~n", [Secs2-Secs1]).
+    {Time, _} = compile_and_run(M, fun() -> timer:tc(fun M:main/0) end),
+    io:fwrite("~nUsed: ~f s~n", [Time/1000000]).
 
 compile_and_run(M, F) ->
     code:purge(M),
@@ -69,10 +66,6 @@ read_util(Stop) ->
         Line2 == Stop -> "";
         Line2 /= Stop -> Line2 ++ "\n" ++ read_util(Stop)
     end.
-
-seconds() ->
-    {Mega, Sec, Micro} = os:timestamp(),
-    (Mega*1000000 + Sec) + Micro/1000000.
 
 string_to_atom(S) ->
     Str = lists:foldl(fun({Re, Replacement}, Str) ->
