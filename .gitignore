@@ -1,6 +1,7 @@
 input.txt
 test.erl
 solution.erl
+*.out
 *.beam
 *.dump
 # Byte-compiled / optimized / DLL files
