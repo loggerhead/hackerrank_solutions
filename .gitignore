@@ -1,5 +1,5 @@
 input.txt
-test.erl
+test.*
 solution.erl
 *.out
 *.beam
